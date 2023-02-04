@@ -32,5 +32,6 @@
 *.app
 
 /build/
-
+/images/
 .vscode/
+.clang-format
