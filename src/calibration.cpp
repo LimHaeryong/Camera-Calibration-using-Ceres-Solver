@@ -64,8 +64,10 @@ int main()
   double reprojection_error =
       cv::calibrateCamera(object_points, image_points, image_size, camera_matrix, dist_coeffs, rvecs, tvecs);
 
-  cout << "camera_matrix\n" << camera_matrix << endl;
-  cout << "dist_coeffs\n" << dist_coeffs << endl; 
+  cout << "reprojection_error : " << reprojection_error << endl;
+
+  cout << "camera_matrix : \n" << camera_matrix << endl;
+  cout << "dist_coeffs : \n" << dist_coeffs << endl; 
 
   // undistort images
   cv::Mat map_x, map_y;

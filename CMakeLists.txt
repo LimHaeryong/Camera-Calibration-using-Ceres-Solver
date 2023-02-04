@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.0.0)
 
+add_compile_options(-std=c++14)
+
 project(CAMERA-CALIBRATION)
 
 find_package(OpenCV REQUIRED)
