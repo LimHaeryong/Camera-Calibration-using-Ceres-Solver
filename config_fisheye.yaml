@@ -1,0 +1,11 @@
+---
+image_dir: "../images_fisheye/"
+
+chessboard:
+  square_size: "0.025"
+  board_width: 9
+  board_height: 6
+
+fish_eye: true
+
+---

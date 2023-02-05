@@ -33,5 +33,6 @@
 
 /build/
 /images/
+/images_fisheye/
 .vscode/
 .clang-format
