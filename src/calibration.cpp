@@ -29,6 +29,7 @@ constexpr uint findchessboard_flags =
     cv::CALIB_CB_ADAPTIVE_THRESH + cv::CALIB_CB_NORMALIZE_IMAGE + cv::CALIB_CB_FAST_CHECK;
 constexpr uint calibration_fisheye_flags =
     cv::fisheye::CALIB_RECOMPUTE_EXTRINSIC + cv::fisheye::CALIB_CHECK_COND + cv::fisheye::CALIB_FIX_SKEW;
+const cv::TermCriteria cornersubpix_criteria(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER, 30, 0.1);
 
 int main()
 {
@@ -53,6 +54,7 @@ int main()
     {
       continue;
     }
+    cv::cornerSubPix(image_gray, corners, cv::Size(11, 11), cv::Size(-1, -1), cornersubpix_criteria);
     image_points.push_back(move(corners));
   }
 
