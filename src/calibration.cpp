@@ -10,13 +10,20 @@ using namespace std;
 void undistort_image(const cv::Mat& src, const cv::Mat& map_x, const cv::Mat& map_y);
 
 // const YAML::Node config = YAML::LoadFile("../config.yaml");
-const YAML::Node config = YAML::LoadFile("../config_fisheye.yaml");
+// const YAML::Node config = YAML::LoadFile("../config_fisheye.yaml");
+const YAML::Node config = YAML::LoadFile("../config_fisheye_2.yaml");
 
 const string IMAGE_DIR = config["image_dir"].as<string>();
+const uint IMAGE_WIDTH = config["image_size"]["width"].as<uint>();
+const uint IMAGE_HEIGHT = config["image_size"]["height"].as<uint>();
+const bool FISH_EYE = config["fish_eye"].as<bool>();
+
 const float SQUARE_SIZE = config["chessboard"]["square_size"].as<float>();
 const uint BOARD_WIDTH = config["chessboard"]["board_width"].as<uint>();
 const uint BOARD_HEIGHT = config["chessboard"]["board_height"].as<uint>();
-const bool FISH_EYE = config["fish_eye"].as<bool>();
+
+const cv::Size image_size(IMAGE_WIDTH, IMAGE_HEIGHT);
+const cv::Size pattern_size(BOARD_WIDTH, BOARD_HEIGHT);
 
 constexpr uint findchessboard_flags =
     cv::CALIB_CB_ADAPTIVE_THRESH + cv::CALIB_CB_NORMALIZE_IMAGE + cv::CALIB_CB_FAST_CHECK;
@@ -28,10 +35,6 @@ int main()
   vector<cv::String> image_list;
   cv::glob(IMAGE_DIR + "*.jpg", image_list);
   const uint num_image = image_list.size();
-
-  cv::Mat sample_image = cv::imread(image_list[0], cv::IMREAD_GRAYSCALE);
-  const cv::Size image_size = sample_image.size();
-  const cv::Size pattern_size(BOARD_WIDTH, BOARD_HEIGHT);
 
   vector<vector<cv::Point3f>> object_points;
   vector<vector<cv::Point2f>> image_points;
@@ -89,17 +92,25 @@ int main()
   cout << "dist_coeffs : \n" << dist_coeffs << endl;
 
   // undistort images
-  cv::Mat map_x, map_y;
+  cv::Mat new_camera_matrix, map_x, map_y;
   if (FISH_EYE == true)
   {
-    cv::fisheye::initUndistortRectifyMap(camera_matrix, dist_coeffs, cv::Mat(), camera_matrix, image_size, CV_16SC2,
+    cv::fisheye::estimateNewCameraMatrixForUndistortRectify(camera_matrix, dist_coeffs, image_size, cv::Mat(),
+                                                            new_camera_matrix, 1.0);
+    cv::fisheye::initUndistortRectifyMap(camera_matrix, dist_coeffs, cv::Mat(), new_camera_matrix, image_size, CV_32FC1,
                                          map_x, map_y);
   }
   else
   {
-    cv::initUndistortRectifyMap(camera_matrix, dist_coeffs, cv::Mat(), camera_matrix, image_size, CV_32FC1, map_x,
+    new_camera_matrix = cv::getOptimalNewCameraMatrix(camera_matrix, dist_coeffs, image_size, 1.0);
+    cv::initUndistortRectifyMap(camera_matrix, dist_coeffs, cv::Mat(), new_camera_matrix, image_size, CV_32FC1, map_x,
                                 map_y);
   }
+
+  cout << "new_camera_matrix : \n" << new_camera_matrix << endl;
+
+  cv::namedWindow("src", cv::WINDOW_NORMAL);
+  cv::namedWindow("undist", cv::WINDOW_NORMAL);
 
   for (auto image_path : image_list)
   {
@@ -117,5 +128,5 @@ void undistort_image(const cv::Mat& src, const cv::Mat& map_x, const cv::Mat& ma
   cv::imshow("src", src);
   cv::imshow("undist", undist);
 
-  cv::waitKey(1000);
+  cv::waitKey(0);
 }

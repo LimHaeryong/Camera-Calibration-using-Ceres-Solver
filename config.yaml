@@ -1,6 +1,10 @@
 ---
 image_dir: "../images/"
 
+image_size:
+  width: 640
+  height: 480
+
 chessboard:
   square_size: "0.025"
   board_width: 9
