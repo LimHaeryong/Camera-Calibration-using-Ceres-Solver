@@ -9,7 +9,7 @@
 using namespace std;
 
 // const YAML::Node config = YAML::LoadFile("../config.yaml");
-const YAML::Node config = YAML::LoadFile("../config_fisheye.yaml");
+const YAML::Node config = YAML::LoadFile("../config/config_fisheye.yaml");
 // const YAML::Node config = YAML::LoadFile("../config_fisheye_2.yaml");
 
 const string IMAGE_DIR = config["image_dir"].as<string>();
@@ -154,7 +154,7 @@ void save_intrinsic(const cv::Mat& camera_matrix, const cv::Mat& dist_coeffs)
 
   YAML::Emitter emitter;
   emitter << config_intrinsic;
-  ofstream fout("../config_intrinsic.yaml");
+  ofstream fout("../config/config_intrinsic.yaml");
   fout << emitter.c_str();
 }
 
