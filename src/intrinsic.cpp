@@ -9,8 +9,8 @@ using namespace std;
 
 void undistort_image(const cv::Mat& src, const cv::Mat& map_x, const cv::Mat& map_y);
 
-// const YAML::Node config = YAML::LoadFile("../config.yaml");
-// const YAML::Node config = YAML::LoadFile("../config_fisheye.yaml");
+//const YAML::Node config = YAML::LoadFile("../config.yaml");
+//const YAML::Node config = YAML::LoadFile("../config_fisheye.yaml");
 const YAML::Node config = YAML::LoadFile("../config_fisheye_2.yaml");
 
 const string IMAGE_DIR = config["image_dir"].as<string>();
@@ -54,7 +54,7 @@ int main()
     {
       continue;
     }
-    cv::cornerSubPix(image_gray, corners, cv::Size(11, 11), cv::Size(-1, -1), cornersubpix_criteria);
+    cv::cornerSubPix(image_gray, corners, cv::Size(7, 7), cv::Size(-1, -1), cornersubpix_criteria);
     image_points.push_back(move(corners));
   }
 
