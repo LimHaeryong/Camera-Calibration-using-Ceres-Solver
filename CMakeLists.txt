@@ -23,10 +23,18 @@ link_directories(
     ${YAML_CPP_LIBRARY_DIRS}
 )
 
-add_executable(calibration
-    src/calibration.cpp
+add_executable(intrinsic
+    src/intrinsic.cpp
 )
-target_link_libraries(calibration
+target_link_libraries(intrinsic
+    ${OpenCV_LIBRARIES}
+    ${YAML_CPP_LIBRARIES}
+)
+
+add_executable(homography
+    src/homography.cpp
+)
+target_link_libraries(homography
     ${OpenCV_LIBRARIES}
     ${YAML_CPP_LIBRARIES}
 )

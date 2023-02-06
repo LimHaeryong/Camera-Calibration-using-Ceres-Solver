@@ -2,23 +2,22 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <fstream>
 #include <iostream>
 #include <vector>
 
 using namespace std;
 
-void undistort_image(const cv::Mat& src, const cv::Mat& map_x, const cv::Mat& map_y);
-
-//const YAML::Node config = YAML::LoadFile("../config.yaml");
-//const YAML::Node config = YAML::LoadFile("../config_fisheye.yaml");
-const YAML::Node config = YAML::LoadFile("../config_fisheye_2.yaml");
+// const YAML::Node config = YAML::LoadFile("../config.yaml");
+const YAML::Node config = YAML::LoadFile("../config_fisheye.yaml");
+// const YAML::Node config = YAML::LoadFile("../config_fisheye_2.yaml");
 
 const string IMAGE_DIR = config["image_dir"].as<string>();
 const uint IMAGE_WIDTH = config["image_size"]["width"].as<uint>();
 const uint IMAGE_HEIGHT = config["image_size"]["height"].as<uint>();
 const bool FISH_EYE = config["fish_eye"].as<bool>();
 
-const float SQUARE_SIZE = config["chessboard"]["square_size"].as<float>();
+const double SQUARE_SIZE = config["chessboard"]["square_size"].as<double>();
 const uint BOARD_WIDTH = config["chessboard"]["board_width"].as<uint>();
 const uint BOARD_HEIGHT = config["chessboard"]["board_height"].as<uint>();
 
@@ -31,7 +30,53 @@ constexpr uint calibration_fisheye_flags =
     cv::fisheye::CALIB_RECOMPUTE_EXTRINSIC + cv::fisheye::CALIB_CHECK_COND + cv::fisheye::CALIB_FIX_SKEW;
 const cv::TermCriteria cornersubpix_criteria(cv::TermCriteria::EPS + cv::TermCriteria::MAX_ITER, 30, 0.1);
 
+void undistort_image(const cv::Mat& src, const cv::Mat& map_x, const cv::Mat& map_y);
+void compute_intrinsic(cv::Mat& camera_matrix, cv::Mat& dist_coeffs);
+void save_intrinsic(const cv::Mat& camera_matrix, const cv::Mat& dist_coeffs);
+
 int main()
+{
+  vector<cv::String> image_list;
+  cv::glob(IMAGE_DIR + "*.jpg", image_list);
+  const uint num_image = image_list.size();
+
+  cv::Mat camera_matrix, dist_coeffs;
+  compute_intrinsic(camera_matrix, dist_coeffs);
+
+  save_intrinsic(camera_matrix, dist_coeffs);
+
+  // undistort images
+  cv::Mat new_camera_matrix, map_x, map_y;
+  if (FISH_EYE == true)
+  {
+    cv::fisheye::estimateNewCameraMatrixForUndistortRectify(camera_matrix, dist_coeffs, image_size, cv::Mat(),
+                                                            new_camera_matrix, 1.0);
+    cv::fisheye::initUndistortRectifyMap(camera_matrix, dist_coeffs, cv::Mat(), new_camera_matrix, image_size, CV_32FC1,
+                                         map_x, map_y);
+  }
+  else
+  {
+    new_camera_matrix = cv::getOptimalNewCameraMatrix(camera_matrix, dist_coeffs, image_size, 1.0);
+    cv::initUndistortRectifyMap(camera_matrix, dist_coeffs, cv::Mat(), new_camera_matrix, image_size, CV_32FC1, map_x,
+                                map_y);
+  }
+
+  cout << "new_camera_matrix : \n" << new_camera_matrix << endl;
+
+  // save intrinsic parameters
+
+  cv::namedWindow("src", cv::WINDOW_NORMAL);
+  cv::namedWindow("undist", cv::WINDOW_NORMAL);
+
+  for (auto image_path : image_list)
+  {
+    cv::Mat image = cv::imread(image_path, cv::IMREAD_COLOR);
+    undistort_image(image, map_x, map_y);
+  }
+  return 0;
+}
+
+void compute_intrinsic(cv::Mat& camera_matrix, cv::Mat& dist_coeffs)
 {
   vector<cv::String> image_list;
   cv::glob(IMAGE_DIR + "*.jpg", image_list);
@@ -64,10 +109,10 @@ int main()
     object_point.reserve(BOARD_HEIGHT * BOARD_WIDTH);
     for (uint j = 0; j < BOARD_HEIGHT; j++)
     {
-      float height = static_cast<float>(j) * SQUARE_SIZE;
+      double height = static_cast<double>(j) * SQUARE_SIZE;
       for (uint k = 0; k < BOARD_WIDTH; k++)
       {
-        float width = static_cast<float>(k) * SQUARE_SIZE;
+        double width = static_cast<double>(k) * SQUARE_SIZE;
         cv::Point3f point(height, width, 0.f);
         object_point.push_back(move(point));
       }
@@ -75,7 +120,6 @@ int main()
     object_points.push_back(move(object_point));
   }
 
-  cv::Mat camera_matrix, dist_coeffs;
   vector<cv::Mat> rvecs, tvecs;
   double reprojection_error;
   if (FISH_EYE == true)
@@ -92,34 +136,26 @@ int main()
   cout << "reprojection_error : " << reprojection_error << endl;
   cout << "camera_matrix : \n" << camera_matrix << endl;
   cout << "dist_coeffs : \n" << dist_coeffs << endl;
+}
 
-  // undistort images
-  cv::Mat new_camera_matrix, map_x, map_y;
-  if (FISH_EYE == true)
-  {
-    cv::fisheye::estimateNewCameraMatrixForUndistortRectify(camera_matrix, dist_coeffs, image_size, cv::Mat(),
-                                                            new_camera_matrix, 1.0);
-    cv::fisheye::initUndistortRectifyMap(camera_matrix, dist_coeffs, cv::Mat(), new_camera_matrix, image_size, CV_32FC1,
-                                         map_x, map_y);
-  }
-  else
-  {
-    new_camera_matrix = cv::getOptimalNewCameraMatrix(camera_matrix, dist_coeffs, image_size, 1.0);
-    cv::initUndistortRectifyMap(camera_matrix, dist_coeffs, cv::Mat(), new_camera_matrix, image_size, CV_32FC1, map_x,
-                                map_y);
-  }
+void save_intrinsic(const cv::Mat& camera_matrix, const cv::Mat& dist_coeffs)
+{
+  YAML::Node config_intrinsic;
+  // config_intrinsic["image_size"] = YAML::Node(YAML::NodeType::Map);
+  config_intrinsic["image_size"]["width"] = IMAGE_WIDTH;
+  config_intrinsic["image_size"]["height"] = IMAGE_HEIGHT;
+  config_intrinsic["fish_eye"] = FISH_EYE;
 
-  cout << "new_camera_matrix : \n" << new_camera_matrix << endl;
+  std::vector<double> camera_matrix_(camera_matrix.begin<double>(), camera_matrix.end<double>());
+  config_intrinsic["camera_matrix"] = camera_matrix_;
 
-  cv::namedWindow("src", cv::WINDOW_NORMAL);
-  cv::namedWindow("undist", cv::WINDOW_NORMAL);
+  std::vector<double> dist_coeffs_(dist_coeffs.begin<double>(), dist_coeffs.end<double>());
+  config_intrinsic["dist_coeffs"] = dist_coeffs_;
 
-  for (auto image_path : image_list)
-  {
-    cv::Mat image = cv::imread(image_path, cv::IMREAD_COLOR);
-    undistort_image(image, map_x, map_y);
-  }
-  return 0;
+  YAML::Emitter emitter;
+  emitter << config_intrinsic;
+  ofstream fout("../config_intrinsic.yaml");
+  fout << emitter.c_str();
 }
 
 void undistort_image(const cv::Mat& src, const cv::Mat& map_x, const cv::Mat& map_y)
