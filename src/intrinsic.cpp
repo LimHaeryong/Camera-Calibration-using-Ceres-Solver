@@ -8,9 +8,9 @@
 
 using namespace std;
 
-// const YAML::Node config = YAML::LoadFile("../config.yaml");
-const YAML::Node config = YAML::LoadFile("../config/config_fisheye.yaml");
-// const YAML::Node config = YAML::LoadFile("../config_fisheye_2.yaml");
+// const YAML::Node config = YAML::LoadFile("../config/config.yaml");
+//const YAML::Node config = YAML::LoadFile("../config/config_fisheye.yaml");
+const YAML::Node config = YAML::LoadFile("../config/config_fisheye_2.yaml");
 
 const string IMAGE_DIR = config["image_dir"].as<string>();
 const uint IMAGE_WIDTH = config["image_size"]["width"].as<uint>();
