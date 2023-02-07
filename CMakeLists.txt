@@ -38,3 +38,11 @@ target_link_libraries(homography
     ${OpenCV_LIBRARIES}
     ${YAML_CPP_LIBRARIES}
 )
+
+add_executable(save_undistorted_image
+    src/save_undistorted_image.cpp
+)
+target_link_libraries(save_undistorted_image
+    ${OpenCV_LIBRARIES}
+    ${YAML_CPP_LIBRARIES}
+)
