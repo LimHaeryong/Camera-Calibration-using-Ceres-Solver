@@ -1,12 +1,12 @@
 ---
-image_dir: "../images_fisheye_2/"
+image_dir: "../project4_intrinsic/"
 
 image_size:
-  width: 3840
-  height: 2880
+  width: 640
+  height: 480
 
 chessboard:
-  square_size: "0.117"
+  square_size: "2.75"
   board_width: 8
   board_height: 6
 

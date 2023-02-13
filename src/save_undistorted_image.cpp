@@ -10,9 +10,9 @@
 
 using namespace std;
 
-const YAML::Node config_intrinsic = YAML::LoadFile("../config/config_intrinsic.yaml");
+const YAML::Node config_intrinsic = YAML::LoadFile("../config/config_calibration.yaml");
 
-const string IMAGE_DIR = "../images_fisheye_2/";
+const string IMAGE_DIR = "../extrinsic_images2/";
 const string SAVE_DIR = "../output/";
 const uint IMAGE_WIDTH = config_intrinsic["image_size"]["width"].as<uint>();
 const uint IMAGE_HEIGHT = config_intrinsic["image_size"]["height"].as<uint>();
