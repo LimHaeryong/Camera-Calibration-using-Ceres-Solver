@@ -8,7 +8,7 @@
 
 using namespace std;
 
-const YAML::Node config_intrinsic = YAML::LoadFile("../config/config_calibration.yaml");
+const YAML::Node config_intrinsic = YAML::LoadFile("../config/config_calibration_battery.yaml");
 const YAML::Node config = YAML::LoadFile("../config/config_xycar_fisheye.yaml");
 
 const uint IMAGE_WIDTH = config["image_size"]["width"].as<uint>();
@@ -28,33 +28,33 @@ const cv::TermCriteria cornersubpix_criteria(cv::TermCriteria::EPS + cv::TermCri
 
 int main()
 {
-  // vector<cv::Point2f> image_point(12);
-  // image_point[0] = cv::Point2f(113, 291);
-  // image_point[1] = cv::Point2f(328, 291);
-  // image_point[2] = cv::Point2f(534, 291);
-  // image_point[3] = cv::Point2f(205, 259);
-  // image_point[4] = cv::Point2f(328, 259);
-  // image_point[5] = cv::Point2f(448, 259);
-  // image_point[6] = cv::Point2f(242, 246);
-  // image_point[7] = cv::Point2f(328, 246);
-  // image_point[8] = cv::Point2f(413, 246);
-  // image_point[9] = cv::Point2f(262, 239);
-  // image_point[10] = cv::Point2f(328, 239);
-  // image_point[11] = cv::Point2f(394, 239);
-
   vector<cv::Point2f> image_point(12);
-  image_point[0] = cv::Point2f(114, 293);
-  image_point[1] = cv::Point2f(329, 296);
-  image_point[2] = cv::Point2f(537, 297);
-  image_point[3] = cv::Point2f(204, 261);
-  image_point[4] = cv::Point2f(329, 263);
-  image_point[5] = cv::Point2f(449, 266);
-  image_point[6] = cv::Point2f(241, 248);
-  image_point[7] = cv::Point2f(329, 250);
-  image_point[8] = cv::Point2f(415, 252);
-  image_point[9] = cv::Point2f(261, 242);
-  image_point[10] = cv::Point2f(329, 243);
-  image_point[11] = cv::Point2f(395, 244);
+  image_point[0] = cv::Point2f(113, 291);
+  image_point[1] = cv::Point2f(328, 291);
+  image_point[2] = cv::Point2f(534, 291);
+  image_point[3] = cv::Point2f(205, 259);
+  image_point[4] = cv::Point2f(328, 259);
+  image_point[5] = cv::Point2f(448, 259);
+  image_point[6] = cv::Point2f(242, 246);
+  image_point[7] = cv::Point2f(328, 246);
+  image_point[8] = cv::Point2f(413, 246);
+  image_point[9] = cv::Point2f(262, 239);
+  image_point[10] = cv::Point2f(328, 239);
+  image_point[11] = cv::Point2f(394, 239);
+
+  // vector<cv::Point2f> image_point(12);
+  // image_point[0] = cv::Point2f(114, 293);
+  // image_point[1] = cv::Point2f(329, 296);
+  // image_point[2] = cv::Point2f(537, 297);
+  // image_point[3] = cv::Point2f(204, 261);
+  // image_point[4] = cv::Point2f(329, 263);
+  // image_point[5] = cv::Point2f(449, 266);
+  // image_point[6] = cv::Point2f(241, 248);
+  // image_point[7] = cv::Point2f(329, 250);
+  // image_point[8] = cv::Point2f(415, 252);
+  // image_point[9] = cv::Point2f(261, 242);
+  // image_point[10] = cv::Point2f(329, 243);
+  // image_point[11] = cv::Point2f(395, 244);
 
   vector<cv::Point2f> homo_object_point(12);
   homo_object_point[0] = cv::Point2f(45, -45);
@@ -72,8 +72,7 @@ int main()
 
   cv::Mat H = cv::findHomography(image_point, homo_object_point);
 
-  cout << "H : \n"
-       << H << endl;
+  cout << "H : \n" << H << endl;
 
   for (int i = 0; i < 12; i++)
   {

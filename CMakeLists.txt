@@ -46,3 +46,11 @@ target_link_libraries(save_undistorted_image
     ${OpenCV_LIBRARIES}
     ${YAML_CPP_LIBRARIES}
 )
+
+add_executable(get_Rt_vectors
+    src/get_Rt_vectors.cpp
+)
+target_link_libraries(get_Rt_vectors
+    ${OpenCV_LIBRARIES}
+    ${YAML_CPP_LIBRARIES}
+)
