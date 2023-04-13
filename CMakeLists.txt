@@ -1,56 +1,14 @@
 cmake_minimum_required(VERSION 3.0.0)
+project(CAMERA-CALIBRATION LANGUAGES CXX)
 
-add_compile_options(-std=c++14)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-project(CAMERA-CALIBRATION)
+add_subdirectory(modules)
 
-find_package(OpenCV REQUIRED)
-find_package(yaml-cpp REQUIRED)
-
-
-include_directories(
-    ${OpenCV_INCLUDE_DIRS}
-    ${YAML_CPP_INCLUDE_DIRS}
+add_executable(camera_intrinsic 
+    examples/camera_intrinsic.cpp
 )
-
-add_definitions(
-    ${OpenCV_DEFINITIONS}
-    ${YAMP_CPP_DEFINITIONS}
-)
-
-link_directories(
-    ${OpenCV_LIBRARY_DIRS}
-    ${YAML_CPP_LIBRARY_DIRS}
-)
-
-add_executable(intrinsic
-    src/intrinsic.cpp
-)
-target_link_libraries(intrinsic
-    ${OpenCV_LIBRARIES}
-    ${YAML_CPP_LIBRARIES}
-)
-
-add_executable(homography
-    src/homography.cpp
-)
-target_link_libraries(homography
-    ${OpenCV_LIBRARIES}
-    ${YAML_CPP_LIBRARIES}
-)
-
-add_executable(save_undistorted_image
-    src/save_undistorted_image.cpp
-)
-target_link_libraries(save_undistorted_image
-    ${OpenCV_LIBRARIES}
-    ${YAML_CPP_LIBRARIES}
-)
-
-add_executable(get_Rt_vectors
-    src/get_Rt_vectors.cpp
-)
-target_link_libraries(get_Rt_vectors
-    ${OpenCV_LIBRARIES}
-    ${YAML_CPP_LIBRARIES}
+target_link_libraries(camera_intrinsic PRIVATE
+    calibration_module
 )
