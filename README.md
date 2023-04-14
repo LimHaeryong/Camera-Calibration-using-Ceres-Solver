@@ -1,5 +1,5 @@
 # Camera-Calibration
-Implementation of camera intrinsic calibration.
+Implementation of camera intrinsic calibration for optics and fisheye distortion model.
 
 ## build
 ```bash
