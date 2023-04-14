@@ -13,6 +13,8 @@ class Calibration
 {
 public:
     Calibration(const std::string& image_directory, const std::string& distortion_model, int corners_width, int corners_height, double square);
+    Calibration(const YAML::Node& config);
+
     virtual ~Calibration();
     void calibrate();
     void undistort(const cv::Mat& src, cv::Mat& dst);
@@ -23,7 +25,7 @@ private:
     bool fisheye_;
     cv::Size image_size_;
     cv::Size pattern_size_;
-    const double square_;
+    double square_;
 
     cv::Mat camera_matrix_;
     cv::Mat new_camera_matrix_;

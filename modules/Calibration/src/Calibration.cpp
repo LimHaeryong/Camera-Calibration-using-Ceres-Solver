@@ -19,6 +19,41 @@ Calibration::Calibration(const std::string &image_directory, const std::string &
     }
 
     pattern_size_ = cv::Size(corners_width, corners_height);
+}
+
+Calibration::Calibration(const YAML::Node &config)
+{
+
+    std::string distortion_model = config["distortion_model"].as<std::string>();
+
+    if (distortion_model == "fisheye")
+    {
+        fisheye_ = true;
+    }
+    else
+    {
+        fisheye_ = false;
+    }
+
+    std::vector<double> camera_matrix = config["camera_matrix"].as<std::vector<double>>();
+    std::vector<double> dist_coeffs = config["dist_coeffs"].as<std::vector<double>>();
+
+    image_size_.width = config["image_width"].as<int>();
+    image_size_.height = config["image_height"].as<int>();
+
+    camera_matrix_ = cv::Mat(3, 3, CV_64F, camera_matrix.data());
+    dist_coeffs_ = cv::Mat(dist_coeffs.size(), 1, CV_64F, dist_coeffs.data());
+
+    if (fisheye_)
+    {
+        cv::fisheye::estimateNewCameraMatrixForUndistortRectify(camera_matrix_, dist_coeffs_, image_size_, cv::Mat(), new_camera_matrix_, 0.0);
+        cv::fisheye::initUndistortRectifyMap(camera_matrix_, dist_coeffs_, cv::Mat(), new_camera_matrix_, image_size_, CV_32FC1, map_x_, map_y_);
+    }
+    else
+    {
+        new_camera_matrix_ = cv::getOptimalNewCameraMatrix(camera_matrix_, dist_coeffs_, image_size_, 0.0);
+        cv::initUndistortRectifyMap(camera_matrix_, dist_coeffs_, cv::Mat(), new_camera_matrix_, image_size_, CV_32FC1, map_x_, map_y_);
+    }
 
 }
 
@@ -73,10 +108,12 @@ void Calibration::calibrate()
     }
 
     std::cout << "reprojection_error : " << reprojection_error << std::endl;
-    std::cout << "camera_matrix : \n" << camera_matrix_ << std::endl;
-    std::cout << "dist_coeffs : \n" << dist_coeffs_ << std::endl;
+    std::cout << "camera_matrix : \n"
+              << camera_matrix_ << std::endl;
+    std::cout << "dist_coeffs : \n"
+              << dist_coeffs_ << std::endl;
 
-    if(fisheye_)
+    if (fisheye_)
     {
         cv::fisheye::estimateNewCameraMatrixForUndistortRectify(camera_matrix_, dist_coeffs_, image_size_, cv::Mat(), new_camera_matrix_, 0.0);
         cv::fisheye::initUndistortRectifyMap(camera_matrix_, dist_coeffs_, cv::Mat(), new_camera_matrix_, image_size_, CV_32FC1, map_x_, map_y_);
@@ -88,7 +125,7 @@ void Calibration::calibrate()
     }
 }
 
-void Calibration::undistort(const cv::Mat& src, cv::Mat& dst)
+void Calibration::undistort(const cv::Mat &src, cv::Mat &dst)
 {
     cv::remap(src, dst, map_x_, map_y_, cv::INTER_LINEAR);
 }
@@ -96,6 +133,21 @@ void Calibration::undistort(const cv::Mat& src, cv::Mat& dst)
 void Calibration::save_yaml()
 {
     YAML::Node config;
+
+    if(fisheye_ == true)
+    {
+        config["distortion_model"] = "fisheye";
+    }
+    else
+    {
+        config["distortion_model"] = "optics";
+    }
+
+    config["image_width"] = image_size_.width;
+    config["image_height"] = image_size_.height;
+
+
+
     std::vector<double> camera_matrix(camera_matrix_.begin<double>(), camera_matrix_.end<double>());
     config["camera_matrix"] = camera_matrix;
 
@@ -104,6 +156,6 @@ void Calibration::save_yaml()
 
     YAML::Emitter emitter;
     emitter << config;
-    std::ofstream fout("intrinsic.yaml");
+    std::ofstream fout("../result/intrinsic.yaml");
     fout << emitter.c_str();
 }

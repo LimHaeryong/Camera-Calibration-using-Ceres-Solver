@@ -28,7 +28,7 @@ int main(int argc, char **argv)
         calibration.undistort(image, undist);
         cv::imshow("src", image);
         cv::imshow("undistorted image", undist);
-        cv::waitKey(0);
+        cv::waitKey(100);
     }
 
     calibration.save_yaml();

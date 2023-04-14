@@ -12,3 +12,10 @@ add_executable(camera_intrinsic
 target_link_libraries(camera_intrinsic PRIVATE
     calibration_module
 )
+
+add_executable(save_undist 
+    examples/save_undistorted_images.cpp
+)
+target_link_libraries(save_undist PRIVATE
+    calibration_module
+)
