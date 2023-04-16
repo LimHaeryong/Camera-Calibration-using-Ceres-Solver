@@ -99,7 +99,10 @@ void Calibration::calibrate()
     double reprojection_error;
     if (fisheye_)
     {
+        reprojection_error = calibrate_implement(object_points, image_points, image_size_, camera_matrix_, dist_coeffs_);
+        return; // for debug
         reprojection_error = cv::fisheye::calibrate(object_points, image_points, image_size_, camera_matrix_, dist_coeffs_, rvecs, tvecs, CALIB_FISHEYE_FLAGS);
+        
     }
     else
     {
@@ -159,11 +162,10 @@ void Calibration::save_yaml()
 
 double Calibration::calibrate_implement(const std::vector<std::vector<cv::Point3f>> &object_points, const std::vector<std::vector<cv::Point2f>> &image_points, cv::Size image_size, cv::Mat &camera_matrix, cv::Mat &dist_coeffs)
 {
-    std::vector<cv::Mat> homographies;
+    std::vector<cv::Mat> homographies, extrinsics;
     get_homographies(object_points, image_points, homographies);
-    std::vector<cv::Mat> intrinsics;
-    get_intrinsics(homographies, intrinsics);
-
+    get_intrinsics(homographies, camera_matrix);
+    get_extrinsics(camera_matrix, homographies, extrinsics);
 
     return 0.0;
 }
@@ -191,18 +193,18 @@ cv::Mat Calibration::get_homography(const std::vector<cv::Point3f> object_point,
         object_point_planar[j].x = object_point[j].x;
         object_point_planar[j].y = object_point[j].y;
     }
-
     cv::Mat homography = cv::findHomography(object_point_planar, image_point);
     return homography;
 }
 
-void Calibration::get_intrinsics(const std::vector<cv::Mat>& homographies, std::vector<cv::Mat>& intrinsics)
+void Calibration::get_intrinsics(const std::vector<cv::Mat>& homographies, cv::Mat& camera_matrix)
 {
     std::size_t M = homographies.size();
     cv::Mat V = cv::Mat::zeros(2 * M, 6, CV_64F);
     for(std::size_t i = 0; i < M; ++i)
     {
         cv::Mat H = homographies[i];
+
         cv::Mat v0_0 = cv::Mat::zeros(1, 6, CV_64F);
         cv::Mat v0_1 = cv::Mat::zeros(1, 6, CV_64F);
         cv::Mat v1_1 = cv::Mat::zeros(1, 6, CV_64F);
@@ -211,9 +213,23 @@ void Calibration::get_intrinsics(const std::vector<cv::Mat>& homographies, std::
         compute_v(H, 0, 1, v0_1);
         compute_v(H, 1, 1, v1_1);
 
-        V.row(2 * i) = v0_1;
-        V.row(2 * i + 1) = 
+        v0_1.copyTo(V.row(2 * i));
+        V.row(2 * i + 1) = v0_0 - v1_1;
     }
+
+    cv::SVD svd(V, cv::SVD::FULL_UV);
+    cv::Vec6d b = svd.vt.row(svd.vt.rows - 1);
+
+    camera_matrix = cv::Mat::zeros(3, 3, CV_64F);
+    double w = b[0]*b[2]*b[5] - b[1]*b[1]*b[5] - b[0]*b[4]*b[4] + 2*b[1]*b[3]*b[4] - b[2]*b[3]*b[3];
+    double d = b[0]*b[2] - b[1]*b[1];
+    camera_matrix.at<double>(0, 0) = sqrt(w / (d * b[0]));
+    camera_matrix.at<double>(1, 1) = sqrt(w / (d * d) * b[0]);
+    camera_matrix.at<double>(0, 1) = sqrt(w / (d * d * b[0])) * b[1];
+    camera_matrix.at<double>(0, 2) = (b[1]*b[4]-b[2]*b[3])/d;
+    camera_matrix.at<double>(1, 2) = (b[1]*b[3]-b[0]*b[4])/d;
+    camera_matrix.at<double>(2, 2) = 1.0;
+
 }
 
 void Calibration::compute_v(const cv::Mat& H, int p, int q, cv::Mat& v)
@@ -224,4 +240,43 @@ void Calibration::compute_v(const cv::Mat& H, int p, int q, cv::Mat& v)
     v.at<double>(0, 3) = H.at<double>(2, p) * H.at<double>(0, q) + H.at<double>(0, p) * H.at<double>(2, q);
     v.at<double>(0, 4) = H.at<double>(2, p) * H.at<double>(1, q) + H.at<double>(1, p) * H.at<double>(2, q);
     v.at<double>(0, 5) = H.at<double>(2, p) * H.at<double>(2, q);       
+}
+
+void Calibration::get_extrinsics(const cv::Mat& camera_matrix, const std::vector<cv::Mat>& homographies, std::vector<cv::Mat>& extrinsics)
+{
+    std::size_t M = homographies.size();
+    extrinsics.clear();
+    extrinsics.reserve(M);
+    for(std::size_t i = 0;  i < M; ++i)
+    {
+        cv::Mat extrinsic = get_extrinsic(camera_matrix, homographies[i]);
+        extrinsics.push_back(std::move(extrinsic));
+    }
+}
+
+cv::Mat Calibration::get_extrinsic(const cv::Mat& camera_matrix, const cv::Mat& homography)
+{
+    cv::Mat A_inv = camera_matrix.inv();
+    cv::Mat R(3, 3, CV_64F);
+    homography.col(0);
+    double lambda = 1.0 / cv::norm(A_inv * homography.col(0));
+    R.col(0) = lambda * A_inv * homography.col(0);
+    R.col(1) = lambda * A_inv * homography.col(1);
+    cv::Mat r2 =  R.col(0).cross(R.col(1));
+    r2.copyTo(R.col(2));
+    refine_rotation_matrix(R);
+    
+    cv::Mat t = lambda * A_inv * homography.col(2);
+    cv::Mat extrinsic(3, 4, CV_64F);
+    R.copyTo(extrinsic.colRange(0, 3));
+    t.copyTo(extrinsic.col(3));
+
+    return extrinsic;
+}
+
+void Calibration::refine_rotation_matrix(cv::Mat& R)
+{
+    cv::Mat S, U, Vt;
+    cv::SVD::compute(R, S, U, Vt);
+    R = U * Vt;
 }
