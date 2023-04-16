@@ -18,13 +18,23 @@ if(yaml-cpp_FOUND)
     message(STATUS "yaml-cpp Found! - ${YAML_CPP_DIR}")
 endif()
 
+find_package(Ceres REQUIRED HINTS
+    /home/haeryong/dev/Visual-Odometry/thirdparty/ceres/install/lib/cmake/Ceres
+)
+if(Ceres_FOUND)
+    message(STATUS "Ceres Found! - ${Ceres_DIR}")
+    set(CERES_LIBS Ceres::ceres)
+endif()
+
 target_include_directories(calibration_module PUBLIC
     include
     ${OpenCV_INCLUDE_DIRS}
     ${YAML_CPP_INCLUDE_DIRS}
+    ${CERES_INCLUDE_DIRS}
 )
 
 target_link_libraries(calibration_module PUBLIC
     ${OpenCV_LIBRARIES}
     ${YAML_CPP_LIBRARIES}
+    ${CERES_LIBS}
 )
