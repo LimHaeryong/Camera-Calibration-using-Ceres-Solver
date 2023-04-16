@@ -54,7 +54,6 @@ Calibration::Calibration(const YAML::Node &config)
         new_camera_matrix_ = cv::getOptimalNewCameraMatrix(camera_matrix_, dist_coeffs_, image_size_, 0.0);
         cv::initUndistortRectifyMap(camera_matrix_, dist_coeffs_, cv::Mat(), new_camera_matrix_, image_size_, CV_32FC1, map_x_, map_y_);
     }
-
 }
 
 Calibration::~Calibration()
@@ -134,7 +133,7 @@ void Calibration::save_yaml()
 {
     YAML::Node config;
 
-    if(fisheye_ == true)
+    if (fisheye_ == true)
     {
         config["distortion_model"] = "fisheye";
     }
@@ -146,8 +145,6 @@ void Calibration::save_yaml()
     config["image_width"] = image_size_.width;
     config["image_height"] = image_size_.height;
 
-
-
     std::vector<double> camera_matrix(camera_matrix_.begin<double>(), camera_matrix_.end<double>());
     config["camera_matrix"] = camera_matrix;
 
@@ -158,4 +155,73 @@ void Calibration::save_yaml()
     emitter << config;
     std::ofstream fout("../result/intrinsic.yaml");
     fout << emitter.c_str();
+}
+
+double Calibration::calibrate_implement(const std::vector<std::vector<cv::Point3f>> &object_points, const std::vector<std::vector<cv::Point2f>> &image_points, cv::Size image_size, cv::Mat &camera_matrix, cv::Mat &dist_coeffs)
+{
+    std::vector<cv::Mat> homographies;
+    get_homographies(object_points, image_points, homographies);
+    std::vector<cv::Mat> intrinsics;
+    get_intrinsics(homographies, intrinsics);
+
+
+    return 0.0;
+}
+
+void Calibration::get_homographies(const std::vector<std::vector<cv::Point3f>> &object_points, const std::vector<std::vector<cv::Point2f>> &image_points, std::vector<cv::Mat>& homographies)
+{
+    std::size_t M = object_points.size();
+    homographies.clear();
+    homographies.reserve(M);
+
+    for(size_t i = 0; i < M; ++i)
+    {
+        cv::Mat homography = get_homography(object_points[i], image_points[i]);
+        homographies.push_back(std::move(homography));
+    }
+
+}
+
+cv::Mat Calibration::get_homography(const std::vector<cv::Point3f> object_point, const std::vector<cv::Point2f>& image_point)
+{
+    std::size_t N = object_point.size();
+    std::vector<cv::Point2f> object_point_planar(N);
+    for(int j = 0; j < N; ++j)
+    {
+        object_point_planar[j].x = object_point[j].x;
+        object_point_planar[j].y = object_point[j].y;
+    }
+
+    cv::Mat homography = cv::findHomography(object_point_planar, image_point);
+    return homography;
+}
+
+void Calibration::get_intrinsics(const std::vector<cv::Mat>& homographies, std::vector<cv::Mat>& intrinsics)
+{
+    std::size_t M = homographies.size();
+    cv::Mat V = cv::Mat::zeros(2 * M, 6, CV_64F);
+    for(std::size_t i = 0; i < M; ++i)
+    {
+        cv::Mat H = homographies[i];
+        cv::Mat v0_0 = cv::Mat::zeros(1, 6, CV_64F);
+        cv::Mat v0_1 = cv::Mat::zeros(1, 6, CV_64F);
+        cv::Mat v1_1 = cv::Mat::zeros(1, 6, CV_64F);
+        
+        compute_v(H, 0, 0, v0_0);
+        compute_v(H, 0, 1, v0_1);
+        compute_v(H, 1, 1, v1_1);
+
+        V.row(2 * i) = v0_1;
+        V.row(2 * i + 1) = 
+    }
+}
+
+void Calibration::compute_v(const cv::Mat& H, int p, int q, cv::Mat& v)
+{
+    v.at<double>(0, 0) = H.at<double>(0, p) * H.at<double>(0, q);
+    v.at<double>(0, 1) = H.at<double>(0, p) * H.at<double>(1, q) + H.at<double>(1, p) * H.at<double>(0, q);
+    v.at<double>(0, 2) = H.at<double>(1, p) * H.at<double>(1, q);
+    v.at<double>(0, 3) = H.at<double>(2, p) * H.at<double>(0, q) + H.at<double>(0, p) * H.at<double>(2, q);
+    v.at<double>(0, 4) = H.at<double>(2, p) * H.at<double>(1, q) + H.at<double>(1, p) * H.at<double>(2, q);
+    v.at<double>(0, 5) = H.at<double>(2, p) * H.at<double>(2, q);       
 }

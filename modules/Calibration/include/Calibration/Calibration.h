@@ -19,7 +19,7 @@ public:
     void calibrate();
     void undistort(const cv::Mat& src, cv::Mat& dst);
     void save_yaml();
-
+    double calibrate_implement(const std::vector<std::vector<cv::Point3f>>& object_points, const std::vector<std::vector<cv::Point2f>>& image_points, cv::Size image_size, cv::Mat& camera_matrix, cv::Mat& dist_coeffs);
 private:
     std::vector<std::string> image_paths_;
     bool fisheye_;
@@ -37,6 +37,12 @@ private:
 
     cv::Mat map_x_;
     cv::Mat map_y_;
+
+    void get_homographies(const std::vector<std::vector<cv::Point3f>> &object_points, const std::vector<std::vector<cv::Point2f>> &image_points, std::vector<cv::Mat>& homographies);
+    cv::Mat get_homography(const std::vector<cv::Point3f> object_point, const std::vector<cv::Point2f>& image_point);
+    void get_intrinsics(const std::vector<cv::Mat>& homographies, std::vector<cv::Mat>& intrinsics);
+    void Calibration::compute_v(const cv::Mat& H, int p, int q, cv::Mat& v);
+
 };
 
 
