@@ -3,7 +3,9 @@ This repository contains an implementation of camera intrinsic calibration for o
 
 For fisheye distortion models, instead of using the calibrate function in the OpenCV library, this implementation uses Ceres Solver.
 
-The implementation is based on the ("A Flexible New Technique for Camera Calibration" by Zhang (1999))[https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr98-71.pdf]. distortion model is based on .(opencv fisheye distortion model)[https://docs.opencv.org/3.4/db/d58/group__calib3d__fisheye.html]
+The implementation is based on the ["A Flexible New Technique for Camera Calibration" by Zhang (1999)](https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr98-71.pdf). 
+
+distortion model is based on [opencv fisheye distortion model](https://docs.opencv.org/3.4/db/d58/group__calib3d__fisheye.html)
 
 ## Dependencies
 - CMake
