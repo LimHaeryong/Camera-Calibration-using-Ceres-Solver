@@ -19,11 +19,3 @@ add_executable(save_undist
 target_link_libraries(save_undist PRIVATE
     calibration_module
 )
-
-add_executable(calibration_implement
-    examples/calibration_implement.cpp
-)
-target_link_libraries(calibration_implement PRIVATE
-    calibration_module
-)
-

@@ -99,10 +99,9 @@ void Calibration::calibrate() {
   if (fisheye_) {
     reprojection_error = calibrate_implement(
         object_points, image_points, image_size_, camera_matrix_, dist_coeffs_);
-    return; // for debug
-    reprojection_error = cv::fisheye::calibrate(
-        object_points, image_points, image_size_, camera_matrix_, dist_coeffs_,
-        rvecs, tvecs, CALIB_FISHEYE_FLAGS);
+    // reprojection_error = cv::fisheye::calibrate(
+    //     object_points, image_points, image_size_, camera_matrix_, dist_coeffs_,
+    //     rvecs, tvecs, CALIB_FISHEYE_FLAGS);
   } else {
     reprojection_error =
         cv::calibrateCamera(object_points, image_points, image_size_,
@@ -290,40 +289,41 @@ void Calibration::estimate_distortion(
     const std::vector<std::vector<cv::Point2f>> &image_points,
     const std::vector<cv::Mat> &extrinsics, const cv::Mat &camera_matrix,
     cv::Mat &dist_coeffs) {
-  int M = extrinsics.size();
-  int N = object_points.size();
+  // int M = extrinsics.size();
+  // int N = object_points.size();
 
-  double u_c = camera_matrix.at<double>(0, 2);
-  double v_c = camera_matrix.at<double>(1, 2);
+  // double u_c = camera_matrix.at<double>(0, 2);
+  // double v_c = camera_matrix.at<double>(1, 2);
 
-  cv::Mat D(2 * M * N, 4, CV_64F);
-  cv::Mat d(2 * M * N, 1, CV_64F);
-  int l = 0;
-  for (int i = 0; i < M; ++i) {
-    cv::Mat extrinsic = extrinsics[i];
-    for (int j = 0; j < N; ++j) {
-      cv::Vec3d xy1 = get_normalized_coord(object_points[i][j], extrinsic);
-      double r_2 = xy1[0] * xy1[0] + xy1[1] * xy1[1];
-      double r_4 = r_2 * r_2;
-      double r_6 = r_2 * r_2 * r_2;
-      double r_8 = r_2 * r_2 * r_2 * r_2;
+  // cv::Mat D(2 * M * N, 4, CV_64F);
+  // cv::Mat d(2 * M * N, 1, CV_64F);
+  // int l = 0;
+  // for (int i = 0; i < M; ++i) {
+  //   cv::Mat extrinsic = extrinsics[i];
+  //   for (int j = 0; j < N; ++j) {
+  //     cv::Vec3d xy1 = get_normalized_coord(object_points[i][j], extrinsic);
+  //     double r_2 = xy1[0] * xy1[0] + xy1[1] * xy1[1];
+  //     double r_4 = r_2 * r_2;
+  //     double r_6 = r_2 * r_2 * r_2;
+  //     double r_8 = r_2 * r_2 * r_2 * r_2;
 
-      cv::Mat uv = camera_matrix.rowRange(0, 2) * xy1;
-      double d_u = uv.at<double>(0, 0) - u_c;
-      double d_v = uv.at<double>(1, 0) - v_c;
+  //     cv::Mat uv = camera_matrix.rowRange(0, 2) * xy1;
+  //     double d_u = uv.at<double>(0, 0) - u_c;
+  //     double d_v = uv.at<double>(1, 0) - v_c;
 
-      D.row(2 * l) = (cv::Mat_<double>(1, 4) << r_2 * d_u, r_4 * d_u, r_6 * d_u,
-                      r_8 * d_u);
-      D.row(2 * l + 1) = (cv::Mat_<double>(1, 4) << r_2 * d_v, r_4 * d_v,
-                          r_6 * d_v, r_8 * d_v);
+  //     D.row(2 * l) = (cv::Mat_<double>(1, 4) << r_2 * d_u, r_4 * d_u, r_6 * d_u,
+  //                     r_8 * d_u);
+  //     D.row(2 * l + 1) = (cv::Mat_<double>(1, 4) << r_2 * d_v, r_4 * d_v,
+  //                         r_6 * d_v, r_8 * d_v);
 
-      d.at<double>(2 * l, 0) = image_points[i][j].x - uv.at<double>(0, 0);
-      d.at<double>(2 * l + 1, 0) = image_points[i][j].y - uv.at<double>(1, 0);
-      ++l;
-    }
-  }
+  //     d.at<double>(2 * l, 0) = image_points[i][j].x - uv.at<double>(0, 0);
+  //     d.at<double>(2 * l + 1, 0) = image_points[i][j].y - uv.at<double>(1, 0);
+  //     ++l;
+  //   }
+  // }
 
-  bool ret = cv::solve(D, d, dist_coeffs, cv::DECOMP_SVD);
+  // bool ret = cv::solve(D, d, dist_coeffs, cv::DECOMP_SVD);
+  dist_coeffs = cv::Mat::zeros(4, 1, CV_64F);
 }
 
 cv::Vec3d Calibration::get_normalized_coord(const cv::Point3f &object_point,
@@ -345,43 +345,64 @@ void Calibration::refine_all(
     std::vector<cv::Mat> &extrinsics,
     const std::vector<std::vector<cv::Point3f>> &object_points,
     const std::vector<std::vector<cv::Point2f>> &image_points) {
-
   std::size_t M = image_points.size();
   std::size_t N = image_points[0].size();
 
-  double *parameters = new double[9];
-  double **extrinsic_array = new double *[M];
-  for(int i = 0; i < M; ++i)
-  {
-    extrinsic_array[i] = new double[6];
+  double *intrinsic_ = new double[9];
+  double **extrinsics_ = new double *[M];
+  for (int i = 0; i < M; ++i) {
+    extrinsics_[i] = new double[6];
   }
-
-  parameters[0] = camera_matrix.at<double>(0, 0);
-  parameters[1] = camera_matrix.at<double>(1, 1);
-  parameters[2] = camera_matrix.at<double>(0, 1);
-  parameters[3] = camera_matrix.at<double>(0, 2);
-  parameters[4] = camera_matrix.at<double>(1, 2);
-  parameters[5] = dist_coeffs.at<double>(0, 0);
-  parameters[6] = dist_coeffs.at<double>(1, 0);
-  parameters[7] = dist_coeffs.at<double>(2, 0);
-  parameters[8] = dist_coeffs.at<double>(3, 0);
-
+  intrinsic_[0] = camera_matrix.at<double>(0, 0);
+  intrinsic_[1] = camera_matrix.at<double>(1, 1);
+  intrinsic_[2] = camera_matrix.at<double>(0, 1);
+  intrinsic_[3] = camera_matrix.at<double>(0, 2);
+  intrinsic_[4] = camera_matrix.at<double>(1, 2);
+  intrinsic_[5] = dist_coeffs.at<double>(0, 0);
+  intrinsic_[6] = dist_coeffs.at<double>(1, 0);
+  intrinsic_[7] = dist_coeffs.at<double>(2, 0);
+  intrinsic_[8] = dist_coeffs.at<double>(3, 0);
   for (std::size_t i = 0; i < M; ++i) {
     cv::Mat rot = extrinsics[i].colRange(0, 3);
     cv::Mat rvec;
     cv::Rodrigues(rot, rvec);
-    extrinsic_array[i][0] = rvec.at<double>(0, 0);
-    extrinsic_array[i][1] = rvec.at<double>(1, 0);
-    extrinsic_array[i][2] = rvec.at<double>(2, 0);
-    extrinsic_array[i][3] = extrinsics[i].at<double>(0, 3);
-    extrinsic_array[i][4] = extrinsics[i].at<double>(1, 3);
-    extrinsic_array[i][5] = extrinsics[i].at<double>(2, 3);
+    extrinsics_[i][0] = rvec.at<double>(0, 0);
+    extrinsics_[i][1] = rvec.at<double>(1, 0);
+    extrinsics_[i][2] = rvec.at<double>(2, 0);
+    extrinsics_[i][3] = extrinsics[i].at<double>(0, 3);
+    extrinsics_[i][4] = extrinsics[i].at<double>(1, 3);
+    extrinsics_[i][5] = extrinsics[i].at<double>(2, 3);
+  }
+  // optimization
+  ceres::Problem problem;
+  for (std::size_t i = 0; i < M; ++i) {
+    for (std::size_t j = 0; j < N; ++j) {
+      ceres::CostFunction *cost_function =
+          projection_error::create(image_points[i][j], object_points[i][j]);
+      problem.AddResidualBlock(cost_function, NULL, intrinsic_, extrinsics_[i]);
+    }
   }
 
-  delete[] parameters;
-  for(int i = 0; i < M; ++i)
-  {
-    delete[] extrinsic_array[i];
+  ceres::Solver::Options options;
+  options.linear_solver_type = ceres::ITERATIVE_SCHUR;
+  options.num_threads = 8;
+  options.minimizer_progress_to_stdout = true;
+  ceres::Solver::Summary summary;
+  ceres::Solve(options, &problem, &summary);
+
+  camera_matrix.at<double>(0, 0) = intrinsic_[0];
+  camera_matrix.at<double>(1, 1) = intrinsic_[1];
+  camera_matrix.at<double>(0, 1) = intrinsic_[2];
+  camera_matrix.at<double>(0, 2) = intrinsic_[3];
+  camera_matrix.at<double>(1, 2) = intrinsic_[4];
+  dist_coeffs.at<double>(0, 0) = intrinsic_[5];
+  dist_coeffs.at<double>(1, 0) = intrinsic_[6];
+  dist_coeffs.at<double>(2, 0) = intrinsic_[7];
+  dist_coeffs.at<double>(3, 0) = intrinsic_[8];
+
+  delete[] intrinsic_;
+  for (int i = 0; i < M; ++i) {
+    delete[] extrinsics_[i];
   }
-  delete[] extrinsic_array;
+  delete[] extrinsics_;
 }

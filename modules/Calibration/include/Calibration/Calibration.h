@@ -78,44 +78,46 @@ private:
                   const std::vector<std::vector<cv::Point2f>> &image_points);
 
   struct projection_error {
-    projection_error(const cv::Point2d &image_point, const double *object_point)
+    projection_error(const cv::Point2f &image_point, const cv::Point3f& object_point)
         : image_point(image_point), object_point(object_point) {}
 
     template <typename T>
     bool operator()(const T *const intrinsic, const T *const extrinsic,
                     T *residuals) const {
       T X[3];
-      ceres::AngleAxisRotatePoint(extrinsic, object_point, X);
+      T object_point_[3];
+      object_point_[0] = T(object_point.x);
+      object_point_[1] = T(object_point.y);
+      object_point_[2] = T(object_point.z);
+      ceres::AngleAxisRotatePoint(extrinsic, object_point_, X);
       X[0] += extrinsic[3];
       X[1] += extrinsic[4];
       X[2] += extrinsic[5];
 
-      T x_p = intrinsic[0] * X[0] / X[2] + intrinsic[2] * X[1] / X[2] +
-              intrinsic[3];
-      T y_p = intrinsic[1] * X[1] / X[2] + intrinsic[4];
+      T x_p = X[0] / X[2];
+      T y_p = X[1] / X[2];
 
-      T r_2 = x_p * x_p + y_p * y_p;
-      T r_4 = r_2 * r_2;
-      T r_6 = r_2 * r_2 * r_2;
-      T r_8 = r_2 * r_2 * r_2 * r_2;
-      T x_c = x_p * (1 + r_2 * intrinsic[5] + r_4 * intrinsic[6] +
-                     r_6 * intrinsic[7] + r_8 * intrinsic[8]);
-      T y_c = y_p * (1 + r_2 * intrinsic[5] + r_4 * intrinsic[6] +
-                     r_6 * intrinsic[7] + r_8 * intrinsic[8]);
+      T r = ceres::sqrt(x_p * x_p + y_p * y_p);
+      T theta = ceres::atan(r);
+      T distortion = theta / r * (T(1.0) + theta * theta * (intrinsic[5] + theta * theta * (intrinsic[6] + theta * theta * (intrinsic[7] + theta * theta * intrinsic[8]))));
+      T predict_x = intrinsic[0] * distortion * x_p + intrinsic[2] * distortion * y_p + intrinsic[3];
+      T predict_y = intrinsic[1] * distortion * y_p + intrinsic[4];
 
-      residuals[0] = T(image_point.x) - x_c;
-      residuals[1] = T(image_point.y) - y_c;
+      residuals[0] = predict_x - T(image_point.x);
+      residuals[1] = predict_y - T(image_point.y);
+      
+
       return true;
     }
 
-    static ceres::CostFunction *create(const cv::Point2d &image_point,
-                                       const double *object_point) {
+    static ceres::CostFunction *create(const cv::Point2f &image_point,
+                                       const cv::Point3f& object_point) {
       return (new ceres::AutoDiffCostFunction<projection_error, 2, 9, 6>(
           new projection_error(image_point, object_point)));
     }
 
-    const cv::Point2d image_point;
-    const double *object_point;
+    const cv::Point2f image_point;
+    const cv::Point3f object_point;
   };
 };
 

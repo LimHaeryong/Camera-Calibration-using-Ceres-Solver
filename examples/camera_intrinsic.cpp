@@ -16,21 +16,6 @@ int main(int argc, char **argv)
 
     Calibration calibration(image_directory, distortion_model, corners_width, corners_height, square);
     calibration.calibrate();
-
-    std::vector<std::string> image_paths;
-    cv::glob(image_directory + "/*.jpg", image_paths);
-    cv::glob(image_directory + "/*.png", image_paths);
-
-    for (const auto &image_path : image_paths)
-    {
-        cv::Mat image = cv::imread(image_path, cv::IMREAD_ANYCOLOR);
-        cv::Mat undist;
-        calibration.undistort(image, undist);
-        cv::imshow("src", image);
-        cv::imshow("undistorted image", undist);
-        cv::waitKey(100);
-    }
-
     calibration.save_yaml();
 
     return 0;
