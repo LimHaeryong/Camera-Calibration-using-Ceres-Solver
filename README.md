@@ -1,5 +1,13 @@
-# Camera-Calibration
-Implementation of camera intrinsic calibration for optics and fisheye distortion model.
+# Camera-Calibration using Ceres Solver
+This repository contains an implementation of camera intrinsic calibration for optics and fisheye distortion models.
+
+For fisheye distortion models, instead of using the calibrate function in the OpenCV library, this implementation uses Ceres Solver.
+
+## Dependencies
+- CMake
+- OpenCV
+- Ceres Solver
+- yaml-cpp
 
 ## build
 ```bash
