@@ -93,8 +93,6 @@ private:
     std::vector<cv::Mat> &extrinsics,
     const std::vector<std::vector<cv::Point3f>> &object_points,
     const std::vector<std::vector<cv::Point2f>> &image_points);
-  
-  double compute_reprojection_error();
 
   struct reprojection_error
   {
