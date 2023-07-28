@@ -18,9 +18,7 @@ if(yaml-cpp_FOUND)
     message(STATUS "yaml-cpp Found! - ${YAML_CPP_DIR}")
 endif()
 
-find_package(Ceres REQUIRED HINTS
-    /home/haeryong/dev/Visual-Odometry/thirdparty/ceres/install/lib/cmake/Ceres
-)
+find_package(Ceres REQUIRED)
 if(Ceres_FOUND)
     message(STATUS "Ceres Found! - ${Ceres_DIR}")
     set(CERES_LIBS Ceres::ceres)
