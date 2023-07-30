@@ -15,12 +15,8 @@ int main(int argc, char **argv)
 
     std::vector<std::string> image_paths;
 
-    std::cout << "0 passed" << std::endl;
-
     cv::glob(image_directory + "/*.jpg", image_paths);
     cv::glob(image_directory + "/*.png", image_paths);
-
-    std::cout << "1 passed" << std::endl;
 
     int count = 0;
     for(const auto& image_path : image_paths)
