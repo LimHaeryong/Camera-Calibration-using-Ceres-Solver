@@ -215,9 +215,9 @@ cv::Mat Calibration::get_homography(
     object_point_planar[j].y = object_point[j].y;
   }
 
-  cv::Mat homography = cv::findHomography(object_point_planar, image_point, cv::RANSAC);
-  //cv::Mat homography2 = find_homography_ransac(object_point_planar, image_point, 2000, 3.0);
-
+  cv::Mat homography = cv::findHomography(object_point_planar, image_point);
+  //cv::Mat homography = find_homography_ransac(object_point_planar, image_point, 2000, 3.0);
+  
   return homography;
 }
 
@@ -247,7 +247,7 @@ cv::Mat Calibration::find_homography(
     A.at<double>(2 * i + 1, 8) = -1.0 * dst.y;
   }
   cv::Mat S, U, Vt;
-  cv::SVD::compute(A.t() * A, S, U, Vt, cv::SVD::Flags::FULL_UV);
+  cv::SVD::compute(A, S, U, Vt, cv::SVD::Flags::FULL_UV);
   cv::Mat H = cv::Mat(3, 3, CV_64F, Vt.row(Vt.rows - 1).data);
   return H;
 }
