@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(calibration_module
     src/Calibration.cpp
+    src/CeresOptimizer.cpp
 )
 
 find_package(OpenCV REQUIRED)

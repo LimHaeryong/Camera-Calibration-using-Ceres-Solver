@@ -216,23 +216,22 @@ cv::Mat Calibration::get_homography(
   }
 
   cv::Mat homography = cv::findHomography(object_point_planar, image_point);
-  //cv::Mat homography = find_homography_ransac(object_point_planar, image_point, 2000, 3.0);
+  //cv::Mat homography = find_homography(object_point_planar, image_point);
   
   return homography;
 }
 
 cv::Mat Calibration::find_homography(
   const std::vector<cv::Point2f> &src_points,
-  const std::vector<cv::Point2f> &dst_points,
-  const std::vector<int> &indices)
+  const std::vector<cv::Point2f> &dst_points)
 {
-  std::size_t num_points = indices.size();
+  std::size_t num_points = src_points.size();
   cv::Mat A = cv::Mat::zeros(2 * num_points, 9, CV_64F);
 
   for (std::size_t i = 0; i < num_points; ++i)
   {
-    auto &src = src_points[indices[i]];
-    auto &dst = dst_points[indices[i]];
+    auto &src = src_points[i];
+    auto &dst = dst_points[i];
     A.at<double>(2 * i, 0) = src.x;
     A.at<double>(2 * i, 1) = src.y;
     A.at<double>(2 * i, 2) = 1.0;
@@ -255,86 +254,33 @@ cv::Mat Calibration::find_homography(
 void Calibration::refine_homography(
   cv::Mat &H,
   const std::vector<cv::Point2f> &src_points,
-  const std::vector<cv::Point2f> &dst_points,
-  const std::vector<int> &indices)
-{
-  double *H_ptr = H.ptr<double>();
-
-  ceres::Problem problem;
-  std::size_t num_points = indices.size();
-  for (std::size_t i = 0; i < num_points; ++i)
-  {
-    ceres::CostFunction *cost_function = projection_error::create(src_points[indices[i]], dst_points[indices[i]]);
-    problem.AddResidualBlock(cost_function, NULL, H_ptr);
-  }
-
-  ceres::Solver::Options options;
-  options.linear_solver_type = ceres::ITERATIVE_SCHUR;
-  options.num_threads = 8;
-  options.minimizer_progress_to_stdout = false;
-  ceres::Solver::Summary summary;
-  ceres::Solve(options, &problem, &summary);
-}
-
-cv::Mat Calibration::find_homography_ransac(
-  const std::vector<cv::Point2f> &src_points,
-  const std::vector<cv::Point2f> &dst_points,
-  int max_iteration,
-  double error_threshold,
-  double confidence)
+  const std::vector<cv::Point2f> &dst_points)
 {
   std::size_t num_points = src_points.size();
 
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
-  std::uniform_int_distribution<int> distribution(0, num_points - 1);
-  std::set<int> random_numbers;
-  std::vector<int> inliers, inliers_tmp;
-  inliers.reserve(num_points);
-  inliers_tmp.reserve(num_points);
-
-  int iter = 0;
-  while (iter++ < max_iteration)
+  std::vector<double> homography(9);
+  for(std::size_t i = 0; i < 3; ++i)
   {
-    random_numbers.clear();
-    inliers_tmp.clear();
-    while (random_numbers.size() < 4)
+    for(std::size_t j = 0; j < 3; ++j)
     {
-      int index = distribution(gen);
-      random_numbers.insert(index);
+      homography[3 * i + j] = H.at<double>(i, j);
     }
-
-    cv::Mat H_tmp =
-      find_homography(src_points, dst_points, std::vector<int>(random_numbers.begin(), random_numbers.end()));
-
-    for (std::size_t i = 0; i < num_points; ++i)
-    {
-      const auto &src = src_points[i];
-      const auto &dst = dst_points[i];
-      double z = src.x * H_tmp.at<double>(2, 0) + src.y * H_tmp.at<double>(2, 1) + H_tmp.at<double>(2, 2);
-
-      double x_diff =
-        (H_tmp.at<double>(0, 0) * src.x + H_tmp.at<double>(0, 1) * src.y + H_tmp.at<double>(0, 2)) / z - dst.x;
-      double y_diff =
-        (H_tmp.at<double>(1, 0) * src.x + H_tmp.at<double>(1, 1) * src.y + H_tmp.at<double>(1, 2)) / z - dst.y;
-      double sqaured_error = x_diff * x_diff + y_diff * y_diff;
-      if (sqaured_error < error_threshold)
-      {
-        inliers_tmp.push_back(i);
-      }
-    }
-    if (inliers.size() < inliers_tmp.size())
-    {
-      inliers.swap(inliers_tmp);
-      if (inliers.size() > num_points * confidence)
-        break;
-    }
-
   }
-  cv::Mat H = find_homography(src_points, dst_points, inliers);
-  refine_homography(H, src_points, dst_points, inliers);
-  H /= H.at<double>(2, 2);
-  return H;
+
+  CeresOptimizer optimizer(CeresOptimizer::Type::homography_geometric);
+  for (std::size_t i = 0; i < num_points; ++i)
+  {
+    optimizer.add_residual(src_points[i], dst_points[i], homography);
+  }
+
+  optimizer.solve();
+  for(std::size_t i = 0; i < 3; ++i)
+  {
+    for(std::size_t j = 0; j < 3; ++j)
+    {
+      H.at<double>(i, j) = homography[3 * i + j];
+    }
+  }
 }
 
 void Calibration::get_intrinsics(const std::vector<cv::Mat> &homographies, cv::Mat &camera_matrix)
@@ -473,22 +419,17 @@ double Calibration::refine_all(
     extrinsics_vec[i][5] = extrinsics[i].at<double>(2, 3);
   }
   // optimization
-  ceres::Problem problem;
+  CeresOptimizer optimizer(CeresOptimizer::Type::distortion_geometric);
+
   for (std::size_t i = 0; i < M; ++i)
   {
     for (std::size_t j = 0; j < N; ++j)
     {
-      ceres::CostFunction *cost_function = reprojection_error::create(image_points[i][j], object_points[i][j]);
-      problem.AddResidualBlock(cost_function, NULL, intrinsic_vec.data(), extrinsics_vec[i].data());
+      optimizer.add_residual(image_points[i][j], object_points[i][j], intrinsic_vec, extrinsics_vec[i]);
     }
   }
 
-  ceres::Solver::Options options;
-  options.linear_solver_type = ceres::ITERATIVE_SCHUR;
-  options.num_threads = 8;
-  options.minimizer_progress_to_stdout = true;
-  ceres::Solver::Summary summary;
-  ceres::Solve(options, &problem, &summary);
+  optimizer.solve();
 
   camera_matrix.at<double>(0, 0) = intrinsic_vec[0];
   camera_matrix.at<double>(1, 1) = intrinsic_vec[1];
