@@ -1,5 +1,6 @@
 #include "Calibration/Calibration.h"
 
+#include <cmath>
 #include <numeric>
 #include <random>
 #include <set>
@@ -199,7 +200,7 @@ void Calibration::get_homographies(
   for (size_t i = 0; i < M; ++i)
   {
     cv::Mat homography = get_homography(object_points[i], image_points[i]);
-    homographies.push_back(std::move(homography));
+    homographies.push_back(homography.clone());
   }
 }
 
@@ -215,9 +216,7 @@ cv::Mat Calibration::get_homography(
     object_point_planar[j].y = object_point[j].y;
   }
 
-  cv::Mat homography = cv::findHomography(object_point_planar, image_point);
-  //cv::Mat homography = find_homography(object_point_planar, image_point);
-  
+  cv::Mat homography = find_homography(object_point_planar, image_point);
   return homography;
 }
 
@@ -226,12 +225,18 @@ cv::Mat Calibration::find_homography(
   const std::vector<cv::Point2f> &dst_points)
 {
   std::size_t num_points = src_points.size();
+  std::vector<cv::Point2f> normalized_src_points(src_points);
+  std::vector<cv::Point2f> normalized_dst_points(dst_points);
+
+  cv::Mat T_src = normalize_image_points(normalized_src_points);
+  cv::Mat T_dst = normalize_image_points(normalized_dst_points);
+
   cv::Mat A = cv::Mat::zeros(2 * num_points, 9, CV_64F);
 
   for (std::size_t i = 0; i < num_points; ++i)
   {
-    auto &src = src_points[i];
-    auto &dst = dst_points[i];
+    auto &src = normalized_src_points[i];
+    auto &dst = normalized_dst_points[i];
     A.at<double>(2 * i, 0) = src.x;
     A.at<double>(2 * i, 1) = src.y;
     A.at<double>(2 * i, 2) = 1.0;
@@ -248,7 +253,61 @@ cv::Mat Calibration::find_homography(
   cv::Mat S, U, Vt;
   cv::SVD::compute(A, S, U, Vt, cv::SVD::Flags::FULL_UV);
   cv::Mat H = cv::Mat(3, 3, CV_64F, Vt.row(Vt.rows - 1).data);
+  H = T_dst.inv() * H * T_src;
+  H /= H.at<double>(2, 2);
+
+  refine_homography(H, src_points, dst_points);
+  H /= H.at<double>(2, 2);
+
   return H;
+}
+
+cv::Mat Calibration::normalize_image_points(std::vector<cv::Point2f>& points)
+{
+  cv::Mat T = cv::Mat::eye(3, 3, CV_64F);
+  std::size_t num_points = points.size();
+
+  double x_center = 0.0, y_center = 0.0;
+  for(const auto& point : points)
+  {
+    x_center += static_cast<double>(point.x);
+    y_center += static_cast<double>(point.y);
+  }
+  x_center /= static_cast<double>(num_points);
+  y_center /= static_cast<double>(num_points);
+
+  T.at<double>(0, 2) = -1.0 * x_center;
+  T.at<double>(1, 2) = -1.0 * y_center;
+
+  for(auto& point : points)
+  {
+    point.x -= static_cast<float>(x_center);
+    point.y -= static_cast<float>(y_center);
+  }
+
+  double avg_dist_x = 0.0, avg_dist_y = 0.0;
+  for(const auto& point : points)
+  {
+    avg_dist_x += static_cast<double>(std::fabs(point.x));
+    avg_dist_y += static_cast<double>(std::fabs(point.y));
+  }
+  avg_dist_x /= static_cast<double>(num_points);
+  avg_dist_y /= static_cast<double>(num_points);
+
+  double scale_x = 1.0 / avg_dist_x;
+  double scale_y = 1.0 / avg_dist_y;
+  T.at<double>(0, 0) = scale_x;
+  T.at<double>(1, 1) = scale_y;
+  T.at<double>(0, 2) *= scale_x;
+  T.at<double>(1, 2) *= scale_y;
+
+  for(auto& point : points)
+  {
+    point.x *= static_cast<double>(scale_x);
+    point.y *= static_cast<double>(scale_y);
+  }
+
+  return T;
 }
 
 void Calibration::refine_homography(
@@ -257,7 +316,6 @@ void Calibration::refine_homography(
   const std::vector<cv::Point2f> &dst_points)
 {
   std::size_t num_points = src_points.size();
-
   std::vector<double> homography(9);
   for(std::size_t i = 0; i < 3; ++i)
   {
@@ -290,7 +348,7 @@ void Calibration::get_intrinsics(const std::vector<cv::Mat> &homographies, cv::M
   for (std::size_t i = 0; i < M; ++i)
   {
     cv::Mat H = homographies[i];
-
+    
     cv::Mat v0_0 = cv::Mat::zeros(1, 6, CV_64F);
     cv::Mat v0_1 = cv::Mat::zeros(1, 6, CV_64F);
     cv::Mat v1_1 = cv::Mat::zeros(1, 6, CV_64F);

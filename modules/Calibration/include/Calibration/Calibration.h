@@ -68,6 +68,8 @@ private:
     const std::vector<cv::Point2f> &src_points,
     const std::vector<cv::Point2f> &dst_points);
 
+  cv::Mat normalize_image_points(std::vector<cv::Point2f>& points);
+
   void refine_homography(
     cv::Mat &H,
     const std::vector<cv::Point2f> &src_points,

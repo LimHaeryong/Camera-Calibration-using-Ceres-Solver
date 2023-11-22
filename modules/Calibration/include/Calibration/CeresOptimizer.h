@@ -22,7 +22,17 @@ public:
         problem = std::make_unique<ceres::Problem>();
         options.linear_solver_type = ceres::ITERATIVE_SCHUR;
         options.num_threads = 8;
-        options.minimizer_progress_to_stdout = true;
+        options.minimizer_progress_to_stdout = false;
+
+        switch(optimizer_type)
+        {
+          case Type::homography_geometric :
+            options.parameter_tolerance = 1e-12;
+            options.gradient_tolerance = 1e-14;
+            options.function_tolerance = 1e-10;
+            break;
+        }
+        
     }
 
     virtual ~CeresOptimizer() {}
@@ -45,9 +55,9 @@ private:
 
 };
 
-struct projection_error
+struct homography_reproj_error
 {
-  projection_error(const cv::Point2f &src_point, const cv::Point2f &dst_point)
+  homography_reproj_error(const cv::Point2f &src_point, const cv::Point2f &dst_point)
   : src_point(src_point), dst_point(dst_point)
   {
   }
@@ -55,20 +65,21 @@ struct projection_error
   bool operator()(const T *const H, T *residuals) const
   {
     T pred_z = H[6] * T(src_point.x) + H[7] * T(src_point.y) + H[8];
-    T predict[2];
-    predict[0] = (H[0] * T(src_point.x) + H[1] * T(src_point.y) + H[2]) / pred_z;
-    predict[1] = (H[3] * T(src_point.x) + H[4] * T(src_point.y) + H[5]) / pred_z;
-    residuals[0] = predict[0] - T(dst_point.x);
-    residuals[1] = predict[1] - T(dst_point.y);
+    T dst_point_est[2];
+    dst_point_est[0] = (H[0] * T(src_point.x) + H[1] * T(src_point.y) + H[2]) / pred_z;
+    dst_point_est[1] = (H[3] * T(src_point.x) + H[4] * T(src_point.y) + H[5]) / pred_z;
+    residuals[0] = dst_point_est[0] - T(dst_point.x);
+    residuals[1] = dst_point_est[1] - T(dst_point.y);
     return true;
   }
   static ceres::CostFunction *create(const cv::Point2f &src_point, const cv::Point2f &dst_point)
   {
-    return (new ceres::AutoDiffCostFunction<projection_error, 2, 9>(new projection_error(src_point, dst_point)));
+    return (new ceres::AutoDiffCostFunction<homography_reproj_error, 2, 9>(new homography_reproj_error(src_point, dst_point)));
   }
   const cv::Point2f src_point;
   const cv::Point2f dst_point;
 };
+
 struct reprojection_error
 {
   reprojection_error(const cv::Point2f &image_point, const cv::Point3f &object_point)
